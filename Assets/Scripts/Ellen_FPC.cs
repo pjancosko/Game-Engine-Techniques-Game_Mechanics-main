@@ -10,6 +10,8 @@ public class Ellen_FPC : MonoBehaviour
     public int maxHealth = 100;
     public int currentHealth;
     public Slider healthBar;
+    public int damagePerSecond = 5;
+    public int healAmount = 10;
 
     private CharacterController characterController;
     private Vector3 moveDirection;
@@ -28,7 +30,11 @@ public class Ellen_FPC : MonoBehaviour
 
         currentHealth = maxHealth;
         if (healthBar != null)
+        {
+            healthBar.maxValue = maxHealth;
+            healthBar.minValue = 0;
             healthBar.value = currentHealth;
+        }
     }
 
     void Update()
@@ -79,16 +85,53 @@ public class Ellen_FPC : MonoBehaviour
     {
         if (other.CompareTag("Grenadier"))
         {
-            TakeDamage(20);
+            TakeDamage(10);
+        }
+        else if (other.CompareTag("Heart"))
+        {
+            Heal(healAmount);
+            Destroy(other.gameObject);
         }
     }
 
-    void TakeDamage(int damage)
+    void OnTriggerStay(Collider other)
     {
-        currentHealth -= damage;
+        if (other.CompareTag("Grenadier"))
+        {
+            TakeDamage(damagePerSecond * Time.deltaTime);
+        }
+    }
+
+    void TakeDamage(float damage)
+    {
+        currentHealth -= Mathf.RoundToInt(damage);
         if (currentHealth < 0) currentHealth = 0;
 
+        Debug.Log("Current Health: " + currentHealth);
+
         if (healthBar != null)
+        {
             healthBar.value = currentHealth;
+            Debug.Log("Slider Value: " + healthBar.value);
+        }
+
+        if (currentHealth == 0)
+        {
+            Debug.Log("Ellen is dead!");
+            // Implement death behavior such as disabling movement or triggering game over UI
+        }
+    }
+
+    void Heal(int healAmount)
+    {
+        currentHealth += healAmount;
+        if (currentHealth > maxHealth) currentHealth = maxHealth;
+
+        Debug.Log("Ellen healed! Current Health: " + currentHealth);
+
+        if (healthBar != null)
+        {
+            healthBar.value = currentHealth;
+        }
     }
 }
