@@ -19,12 +19,27 @@ public class WeatherManager : MonoBehaviour
     [Tooltip("Time in seconds between weather updates.")]
     public float weatherUpdateInterval = 10f;
 
+    [Header("Terrain Settings")]
+    public TerrainGenerator terrainGenerator;
+
+    [Header("Player Settings")]
+    public Transform playerTransform; // Reference to the player's transform
+
     void Start()
     {
         // Initialize the weather when the scene starts.
         UpdateWeather();
         // Start the coroutine to update weather automatically.
         StartCoroutine(WeatherCycle());
+    }
+
+    void Update()
+    {
+        // Update the WeatherManager's position to match the player's position
+        if (playerTransform != null)
+        {
+            transform.position = playerTransform.position;
+        }
     }
 
     /// <summary>
@@ -74,12 +89,20 @@ public class WeatherManager : MonoBehaviour
         {
             case WeatherType.Clear:
                 // No particle effect for clear weather.
+                if (terrainGenerator != null)
+                {
+                    terrainGenerator.heightMultiplier = 1f; // Default height multiplier
+                }
                 break;
             case WeatherType.Rain:
                 if (rainParticleSystem != null)
                 {
                     rainParticleSystem.gameObject.SetActive(true);
                     rainParticleSystem.Play();
+                }
+                if (terrainGenerator != null)
+                {
+                    terrainGenerator.heightMultiplier = 0.8f; // Example adjustment for rain
                 }
                 break;
             case WeatherType.Snow:
@@ -88,7 +111,17 @@ public class WeatherManager : MonoBehaviour
                     snowParticleSystem.gameObject.SetActive(true);
                     snowParticleSystem.Play();
                 }
+                if (terrainGenerator != null)
+                {
+                    terrainGenerator.heightMultiplier = 1.2f; // Example adjustment for snow
+                }
                 break;
+        }
+
+        // Regenerate the terrain with the new height multiplier
+        if (terrainGenerator != null)
+        {
+            terrainGenerator.RegenerateTerrain();
         }
     }
 }
