@@ -4,57 +4,121 @@ using System.Collections;
 public enum WeatherType
 {
     Clear,
-    Rain,
-    Snow
+    Rain
 }
 
 public class WeatherManager : MonoBehaviour
 {
     [Header("Particle Systems")]
-    public ParticleSystem snowParticleSystem;
     public ParticleSystem rainParticleSystem;
 
     [Header("Weather Settings")]
     public WeatherType currentWeather = WeatherType.Clear;
-    [Tooltip("Time in seconds between weather updates.")]
-    public float weatherUpdateInterval = 10f;
 
-    [Header("Terrain Settings")]
-    public TerrainGenerator terrainGenerator;
-
-    [Header("Player Settings")]
-    public Transform playerTransform; // Reference to the player's transform
+    private Terrain terrain; // Reference to the terrain
+    private DayNightCycle dayNightCycle; // Reference to the DayNightCycle script
 
     void Start()
     {
-        // Initialize the weather when the scene starts.
-        UpdateWeather();
-        // Start the coroutine to update weather automatically.
-        StartCoroutine(WeatherCycle());
+        // Start the coroutine to wait for the terrain to be generated
+        StartCoroutine(WaitForTerrainAndInitializeWeather());
+
+        // Find the DayNightCycle script in the scene
+        dayNightCycle = FindObjectOfType<DayNightCycle>();
+        if (dayNightCycle == null)
+        {
+            Debug.LogError("WeatherManager: No DayNightCycle script found in the scene.");
+        }
     }
 
     void Update()
     {
-        // Update the WeatherManager's position to match the player's position
-        if (playerTransform != null)
+        // Update the WeatherManager's position to match the terrain's position
+        if (terrain != null)
         {
-            transform.position = playerTransform.position;
+            CenterOnTerrain();
+        }
+
+        // Check if it is night time (18:00 to 6:00)
+        if (dayNightCycle != null && (dayNightCycle.currentTime >= 18f || dayNightCycle.currentTime < 6f))
+        {
+            // Set weather to rain during the night
+            if (currentWeather != WeatherType.Rain)
+            {
+                SetWeather(WeatherType.Rain);
+            }
+        }
+        else
+        {
+            // Set weather to clear during the day
+            if (currentWeather != WeatherType.Clear)
+            {
+                SetWeather(WeatherType.Clear);
+            }
+        }
+    }
+
+    IEnumerator WaitForTerrainAndInitializeWeather()
+    {
+        // Wait until the terrain is generated
+        while (Terrain.activeTerrain == null)
+        {
+            yield return null;
+        }
+
+        // Get the active terrain
+        terrain = Terrain.activeTerrain;
+
+        // Check if the terrain is found
+        if (terrain != null)
+        {
+            // Center the WeatherManager on the terrain
+            CenterOnTerrain();
+
+            // Update the particle systems to match the terrain size
+            UpdateParticleSystemShape();
+
+            // Initialize the weather when the terrain is found
+            UpdateWeather();
+        }
+        else
+        {
+            Debug.LogError("No active terrain found in the scene.");
         }
     }
 
     /// <summary>
-    /// Coroutine that periodically updates the weather condition.
+    /// Centers the WeatherManager on the terrain.
     /// </summary>
-    IEnumerator WeatherCycle()
+    void CenterOnTerrain()
     {
-        while (true)
-        {
-            // Wait for the specified interval before changing the weather.
-            yield return new WaitForSeconds(weatherUpdateInterval);
+        Vector3 terrainPosition = terrain.transform.position;
+        Vector3 terrainSize = terrain.terrainData.size;
 
-            // Randomly select a new weather condition.
-            WeatherType newWeather = (WeatherType)Random.Range(0, System.Enum.GetValues(typeof(WeatherType)).Length);
-            SetWeather(newWeather);
+        // Calculate the center of the terrain
+        float centerX = terrainPosition.x + terrainSize.x * 0.5f;
+        float centerZ = terrainPosition.z + terrainSize.z * 0.5f;
+        float centerY = terrain.SampleHeight(new Vector3(centerX, 0, centerZ)) + terrainPosition.y;
+
+        // Set the WeatherManager's position to the center of the terrain
+        transform.position = new Vector3(centerX, centerY, centerZ);
+    }
+
+    /// <summary>
+    /// Updates the shape module of the particle systems so that the emission area matches the terrain size.
+    /// </summary>
+    void UpdateParticleSystemShape()
+    {
+        if (terrain == null) return;
+
+        Vector3 terrainSize = terrain.terrainData.size;
+
+        // Update rain particle system shape
+        if (rainParticleSystem != null)
+        {
+            var rainShape = rainParticleSystem.shape;
+            // Set the scale to match the terrain's x (width) and z (length). The y value is kept as is.
+            rainShape.scale = new Vector3(terrainSize.x, rainShape.scale.y, terrainSize.z);
         }
     }
 
@@ -72,12 +136,7 @@ public class WeatherManager : MonoBehaviour
     /// </summary>
     void UpdateWeather()
     {
-        // Turn off both weather effects by default.
-        if (snowParticleSystem != null)
-        {
-            snowParticleSystem.gameObject.SetActive(false);
-            snowParticleSystem.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-        }
+        // Turn off the rain effect by default.
         if (rainParticleSystem != null)
         {
             rainParticleSystem.gameObject.SetActive(false);
@@ -89,10 +148,6 @@ public class WeatherManager : MonoBehaviour
         {
             case WeatherType.Clear:
                 // No particle effect for clear weather.
-                if (terrainGenerator != null)
-                {
-                    terrainGenerator.heightMultiplier = 1f; // Default height multiplier
-                }
                 break;
             case WeatherType.Rain:
                 if (rainParticleSystem != null)
@@ -100,28 +155,7 @@ public class WeatherManager : MonoBehaviour
                     rainParticleSystem.gameObject.SetActive(true);
                     rainParticleSystem.Play();
                 }
-                if (terrainGenerator != null)
-                {
-                    terrainGenerator.heightMultiplier = 0.8f; // Example adjustment for rain
-                }
                 break;
-            case WeatherType.Snow:
-                if (snowParticleSystem != null)
-                {
-                    snowParticleSystem.gameObject.SetActive(true);
-                    snowParticleSystem.Play();
-                }
-                if (terrainGenerator != null)
-                {
-                    terrainGenerator.heightMultiplier = 1.2f; // Example adjustment for snow
-                }
-                break;
-        }
-
-        // Regenerate the terrain with the new height multiplier
-        if (terrainGenerator != null)
-        {
-            terrainGenerator.RegenerateTerrain();
         }
     }
 }

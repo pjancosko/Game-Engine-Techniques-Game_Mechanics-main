@@ -14,11 +14,6 @@ public class ObjectSpawner : MonoBehaviour
     [Header("Spawn Settings")]
     public List<SpawnableObject> objectsToSpawn; // List of objects to spawn with their counts
     public float spawnHeightOffset = 0f; // Height offset to place objects above the terrain
-    public float spawnRadius = 100f; // Radius of the area to spawn objects
-    public float spawnInterval = 5f; // Time interval between spawns
-
-    [Header("Character Settings")]
-    public Transform characterTransform; // Reference to the character's transform
 
     private Terrain terrain; // Reference to the terrain
 
@@ -42,8 +37,8 @@ public class ObjectSpawner : MonoBehaviour
         // Check if the terrain is found
         if (terrain != null)
         {
-            // Start spawning objects at intervals
-            StartCoroutine(SpawnObjectsAtIntervals());
+            // Spawn objects across the entire terrain
+            SpawnObjects();
         }
         else
         {
@@ -51,44 +46,56 @@ public class ObjectSpawner : MonoBehaviour
         }
     }
 
-    IEnumerator SpawnObjectsAtIntervals()
-    {
-        while (true)
-        {
-            SpawnObjects();
-            yield return new WaitForSeconds(spawnInterval);
-        }
-    }
-
     void SpawnObjects()
     {
-        if (characterTransform == null)
+        if (terrain == null)
         {
-            Debug.LogError("Character transform is not assigned.");
+            Debug.LogError("Terrain is not assigned.");
             return;
         }
 
-        Vector3 characterPosition = characterTransform.position;
+        Vector3 terrainPosition = terrain.transform.position;
+        Vector3 terrainSize = terrain.terrainData.size;
 
         foreach (var spawnableObject in objectsToSpawn)
         {
             for (int i = 0; i < spawnableObject.count; i++)
             {
-                // Generate a random position within the specified radius around the character
-                float angle = Random.Range(0f, Mathf.PI * 2);
-                float distance = Random.Range(0f, spawnRadius);
-                float x = characterPosition.x + Mathf.Cos(angle) * distance;
-                float z = characterPosition.z + Mathf.Sin(angle) * distance;
-                float y = terrain.SampleHeight(new Vector3(x, 0, z)) + spawnHeightOffset;
+                Vector3 spawnPosition = Vector3.zero; // Initialize with a default value
+                bool validPosition = false;
 
-                // Instantiate the object at the calculated position
-                Vector3 spawnPosition = new Vector3(x, y, z);
-                GameObject spawnedObject = Instantiate(spawnableObject.prefab, spawnPosition, Quaternion.identity);
-
-                // Ensure the spawned object has a collider
-                if (spawnedObject.GetComponent<Collider>() == null)
+                // Try to find a valid position within the terrain bounds
+                for (int attempts = 0; attempts < 10; attempts++)
                 {
-                    spawnedObject.AddComponent<BoxCollider>();
+                    // Generate a random position within the terrain bounds
+                    float x = Random.Range(terrainPosition.x, terrainPosition.x + terrainSize.x);
+                    float z = Random.Range(terrainPosition.z, terrainPosition.z + terrainSize.z);
+
+                    // Check if the position is within the terrain bounds
+                    if (x >= terrainPosition.x && x <= terrainPosition.x + terrainSize.x &&
+                        z >= terrainPosition.z && z <= terrainPosition.z + terrainSize.z)
+                    {
+                        float y = terrain.SampleHeight(new Vector3(x, 0, z)) + spawnHeightOffset;
+                        spawnPosition = new Vector3(x, y, z);
+                        validPosition = true;
+                        break;
+                    }
+                }
+
+                if (validPosition)
+                {
+                    // Instantiate the object at the calculated position
+                    GameObject spawnedObject = Instantiate(spawnableObject.prefab, spawnPosition, Quaternion.identity);
+
+                    // Ensure the spawned object has a collider
+                    if (spawnedObject.GetComponent<Collider>() == null)
+                    {
+                        spawnedObject.AddComponent<BoxCollider>();
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("Failed to find a valid spawn position within the terrain bounds.");
                 }
             }
         }
