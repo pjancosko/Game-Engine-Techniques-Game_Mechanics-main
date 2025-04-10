@@ -4700,27 +4700,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3235965575132470314, guid: 1c443c3abb862244aa6185fe28d5f5bb, type: 3}
   m_PrefabInstance: {fileID: 2034402620}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &536295248
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 536295243}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bf1d0a432c1e3d04f9ea0924269f17a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 5
-  lookSpeed: 2
-  jumpForce: 5
-  cameraTransform: {fileID: 1393298456}
-  maxHealth: 100
-  currentHealth: 0
-  healthBar: {fileID: 601361318}
-  damagePerSecond: 5
-  healAmount: 10
 --- !u!143 &536295249
 CharacterController:
   m_ObjectHideFlags: 0
@@ -4746,6 +4725,27 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &536295251
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 536295243}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29743fc444831e6498ac6414d2184532, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moveSpeed: 5
+  lookSpeed: 2
+  jumpForce: 5
+  cameraTransform: {fileID: 1393298456}
+  maxHealth: 100
+  currentHealth: 0
+  healthBar: {fileID: 601361318}
+  damagePerSecond: 5
+  healAmount: 10
 --- !u!1 &563952489
 GameObject:
   m_ObjectHideFlags: 0
@@ -26810,7 +26810,7 @@ PrefabInstance:
       addedObject: {fileID: 536295249}
     - targetCorrespondingSourceObject: {fileID: 3235965575132758090, guid: 1c443c3abb862244aa6185fe28d5f5bb, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 536295248}
+      addedObject: {fileID: 536295251}
   m_SourcePrefab: {fileID: 100100000, guid: 1c443c3abb862244aa6185fe28d5f5bb, type: 3}
 --- !u!43 &2055866054
 Mesh:
