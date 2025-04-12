@@ -10,18 +10,21 @@ public class ChomperAI : MonoBehaviour
     public float patrolRadius = 5f;         // Patrol radius around the spawn position
     public float patrolWaitTime = 2f;       // Time to wait at each patrol point
     public float attackDistance = 2f;       // Distance within which the Chomper will attack
+    
+    [Header("Chase Settings")]
+    public float lostDistance = 10f;        // If target is farther than this, give up chasing
 
     private NavMeshAgent agent;
     private Animator animator;
     private int currentPatrolIndex;
     private float waitTimer;
-    public List<Transform> patrolPoints; // Generated patrol points
+    public List<Transform> patrolPoints;    // Generated patrol points
 
     private enum State { Patrol, Chase, Attack }
     private State currentState;
 
-    // Flag indicating whether Ellen is in contact via trigger.
-    private bool isInContact = false;
+    // Flag indicating whether Ellen has been detected ("found").
+    private bool targetFound = false;
 
     void Start()
     {
@@ -68,38 +71,59 @@ public class ChomperAI : MonoBehaviour
     }
 
     void Update()
-{
-    if (target == null)
     {
-        Debug.LogError("Target (Ellen) is not assigned to the Chomper!");
-        return;
-    }
+        if (target == null)
+        {
+            Debug.LogError("Target (Ellen) is not assigned to the Chomper!");
+            return;
+        }
 
-    float distanceToTarget = Vector3.Distance(transform.position, target.position);
+        float distanceToTarget = Vector3.Distance(transform.position, target.position);
 
-    switch (currentState)
-    {
-        case State.Patrol:
-            Patrol();
-            // Switch to Chase if Ellen is in contact.
-            if (isInContact)
+        // If chasing or attacking but the target is too far away, give up and return to patrol.
+        if ((currentState == State.Chase || currentState == State.Attack) && distanceToTarget > lostDistance)
+        {
+            targetFound = false;
+            currentState = State.Patrol;
+            animator.SetBool("isAttacking", false);
+            // Optionally, reset destination to the patrol point.
+            if (patrolPoints != null && patrolPoints.Count > 0)
             {
-                currentState = State.Chase;
+                agent.destination = patrolPoints[currentPatrolIndex].position;
             }
-            break;
-        case State.Chase:
-            Chase(distanceToTarget);
-            break;
-        case State.Attack:
-            if (distanceToTarget > attackDistance)
-            {
-                currentState = State.Chase;
-                agent.isStopped = false;
-                animator.SetBool("Attack", false);
-            }
-            break;
+        }
+
+        // In Chase and Attack states, always update the destination to the target.
+        if (currentState == State.Chase || currentState == State.Attack)
+        {
+            agent.destination = target.position;
+        }
+
+        switch (currentState)
+        {
+            case State.Patrol:
+                Patrol();
+                break;
+
+            case State.Chase:
+                Chase(distanceToTarget);
+                break;
+
+            case State.Attack:
+                // If target moves out of attack distance but is still within lostDistance, revert to chasing.
+                if (distanceToTarget > attackDistance)
+                {
+                    currentState = State.Chase;
+                    animator.SetBool("isAttacking", false);
+                }
+                else
+                {
+                    // Continue attacking while following the target.
+                    animator.SetBool("isAttacking", true);
+                }
+                break;
+        }
     }
-}
 
     void Patrol()
     {
@@ -115,6 +139,7 @@ public class ChomperAI : MonoBehaviour
             return;
         }
 
+        // Patrol behavior: move among the patrol points.
         if (agent.remainingDistance < 0.5f && !agent.pathPending)
         {
             waitTimer += Time.deltaTime;
@@ -134,45 +159,43 @@ public class ChomperAI : MonoBehaviour
             Debug.LogError("Target is not assigned!");
             return;
         }
-
-        // Set destination to target's position.
+        
+        // Continuously update destination toward the target.
         agent.destination = target.position;
-
+        
+        // When the target is within attack distance, switch to the Attack state.
         if (distanceToTarget <= attackDistance)
         {
             currentState = State.Attack;
-            agent.isStopped = true;
-            animator.SetBool("Attack", true);
+            animator.SetBool("isAttacking", true);
         }
         else
         {
-            agent.isStopped = false;
-            animator.SetBool("Attack", false);
+            animator.SetBool("isAttacking", false);
         }
     }
 
     void OnTriggerEnter(Collider other)
-{
-    Debug.Log("OnTriggerEnter called with: " + other.name);
-    if (other.CompareTag("Player"))
     {
-        isInContact = true;
-        currentState = State.Chase;
-        Debug.Log("Chomper: Ellen entered contact at " + Time.time);
+        Debug.Log("OnTriggerEnter called with: " + other.name);
+        if (other.CompareTag("Player"))
+        {
+            // Once the target is "found", set the flag and switch to Chase.
+            targetFound = true;
+            currentState = State.Chase;
+            Debug.Log("Chomper: Target found at " + Time.time);
+        }
     }
-}
 
+    // Instead of immediately returning to patrol on OnTriggerExit,
+    // we now log the event and let the "lostDistance" condition handle resetting the state.
     void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-            isInContact = false;
-            currentState = State.Patrol;
-            Debug.Log("Chomper: Ellen exited contact at " + Time.time);
-            if (patrolPoints != null && patrolPoints.Count > 0)
-            {
-                agent.destination = patrolPoints[currentPatrolIndex].position;
-            }
+            Debug.Log("Chomper: Target left trigger at " + Time.time);
+            // Optionally, you might choose to set a timer here before giving up chasing
+            // or simply rely on lostDistance in Update.
         }
     }
 
